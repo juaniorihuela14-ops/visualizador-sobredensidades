@@ -1,0 +1,958 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Visualizador de grupos</title>
+
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f5f5f5;
+      color: #222;
+    }
+
+    header {
+      background: #222;
+      color: white;
+      padding: 14px 20px;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 22px;
+    }
+
+    main {
+      padding: 18px 22px;
+    }
+
+    .top-panel {
+      background: white;
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 18px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+    }
+
+    .controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    label {
+      font-weight: bold;
+    }
+
+    select,
+    input[type="file"] {
+      padding: 6px;
+      font-size: 14px;
+    }
+
+    button {
+      padding: 7px 12px;
+      border: 1px solid #999;
+      border-radius: 6px;
+      background: #f0f0f0;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button:hover {
+      background: #e3e3e3;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .status {
+      font-size: 14px;
+      color: #555;
+      margin-top: 6px;
+    }
+
+    .error {
+      color: #b00020;
+      font-weight: bold;
+    }
+
+    .summary-panel {
+      background: white;
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 18px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+    }
+
+    .summary-panel h2 {
+      margin-top: 0;
+      font-size: 20px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 8px 18px;
+    }
+
+    .summary-item {
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    .summary-key {
+      font-weight: bold;
+      color: #333;
+    }
+
+    .plots-panel {
+      background: white;
+      border-radius: 8px;
+      padding: 14px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+    }
+
+    .plots-panel h2 {
+      margin-top: 0;
+      font-size: 20px;
+    }
+
+    .plot-viewer {
+      text-align: center;
+    }
+
+    .plot-title {
+      font-weight: bold;
+      margin: 8px 0 12px 0;
+      font-size: 16px;
+    }
+
+    .plot-image {
+      max-width: 100%;
+      max-height: 78vh;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      background: white;
+      cursor: zoom-in;
+    }
+
+    .help-text {
+      font-size: 13px;
+      color: #666;
+      margin-top: 8px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .file-load-panel {
+      padding: 10px;
+      border: 1px dashed #aaa;
+      border-radius: 8px;
+      background: #fffbe8;
+      margin-top: 10px;
+    }
+
+    /* ========================================================
+       MODAL
+       ======================================================== */
+
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: rgba(0, 0, 0, 0.88);
+    }
+
+    .modal-content-wrapper {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    .modal-image {
+      max-width: 95%;
+      max-height: 86%;
+      border-radius: 6px;
+      background: white;
+    }
+
+    .modal-title {
+      color: white;
+      font-size: 16px;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+
+    .modal-close {
+      position: fixed;
+      top: 18px;
+      right: 26px;
+      color: white;
+      font-size: 36px;
+      font-weight: bold;
+      cursor: pointer;
+      z-index: 1100;
+    }
+
+    .modal-close:hover {
+      color: #ccc;
+    }
+
+    .modal-nav-button {
+      position: fixed;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 1100;
+      font-size: 28px;
+      padding: 12px 18px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255, 255, 255, 0.82);
+      cursor: pointer;
+    }
+
+    .modal-nav-button:hover {
+      background: rgba(255, 255, 255, 0.96);
+    }
+
+    #modalPrevButton {
+      left: 24px;
+    }
+
+    #modalNextButton {
+      right: 24px;
+    }
+
+    .modal-help {
+      color: #ddd;
+      font-size: 13px;
+      margin-top: 10px;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Visualizador interactivo de grupos</h1>
+  </header>
+
+  <main>
+    <section class="top-panel">
+      <div class="controls-row">
+        <label for="modeSelect">Modo:</label>
+        <select id="modeSelect">
+          <option value="group">Seleccionar grupo</option>
+          <option value="plot">Seleccionar gráfico</option>
+        </select>
+      </div>
+
+      <div id="groupModeControls" class="controls-row">
+        <button id="prevGroupButton">Previous Group</button>
+
+        <label for="groupSelect">Grupo:</label>
+        <select id="groupSelect"></select>
+
+        <button id="nextGroupButton">Next Group</button>
+
+        <button id="prevGraphButtonGroupMode">Previous Graph</button>
+        <button id="nextGraphButtonGroupMode">Next Graph</button>
+      </div>
+
+      <div id="plotModeControls" class="controls-row hidden">
+        <button id="prevGroupButtonPlotMode">Previous Group</button>
+
+        <label for="plotSelect">Gráfico:</label>
+        <select id="plotSelect"></select>
+
+        <button id="nextGroupButtonPlotMode">Next Group</button>
+
+        <button id="prevGraphButtonPlotMode">Previous Graph</button>
+        <button id="nextGraphButtonPlotMode">Next Graph</button>
+      </div>
+
+      <div id="manualLoadPanel" class="file-load-panel hidden">
+        <div class="status error">
+          No pude recargar data.json automáticamente. Si abriste el HTML como archivo local, usá el selector de abajo.
+        </div>
+        <div class="controls-row" style="margin-top: 8px;">
+          <label for="manualDataInput">Cargar data.json manualmente:</label>
+          <input id="manualDataInput" type="file" accept=".json,application/json" />
+        </div>
+      </div>
+
+      <div id="status" class="status">Cargando data.json...</div>
+    </section>
+
+    <section class="summary-panel">
+      <h2>Resumen de grupo</h2>
+      <div id="groupSummary" class="summary-grid"></div>
+    </section>
+
+    <section class="plots-panel">
+      <h2>Gráfico</h2>
+      <div class="plot-viewer">
+        <div id="plotTitle" class="plot-title"></div>
+        <img id="plotImage" class="plot-image" alt="Gráfico del grupo" />
+        <div class="help-text">
+          Click sobre la imagen para ampliar. En modo ampliado podés usar ← y → para cambiar de gráfico.
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="imageModal" class="modal">
+    <span id="modalClose" class="modal-close">&times;</span>
+
+    <button id="modalPrevButton" class="modal-nav-button">&#10094;</button>
+    <button id="modalNextButton" class="modal-nav-button">&#10095;</button>
+
+    <div class="modal-content-wrapper">
+      <div id="modalTitle" class="modal-title"></div>
+      <img id="modalImage" class="modal-image" alt="Gráfico ampliado" />
+      <div class="modal-help">
+        Usá ← y → para cambiar de gráfico. Esc para cerrar.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    // ESTADO GLOBAL
+    // ============================================================
+
+    let rawData = null;
+    let groups = [];
+    let currentGroupIndex = 0;
+    let currentPlotIndex = 0;
+
+    // ============================================================
+    // ELEMENTOS DEL DOM
+    // ============================================================
+
+    const modeSelect = document.getElementById("modeSelect");
+
+    const groupModeControls = document.getElementById("groupModeControls");
+    const plotModeControls = document.getElementById("plotModeControls");
+
+    const groupSelect = document.getElementById("groupSelect");
+    const plotSelect = document.getElementById("plotSelect");
+
+    const prevGroupButton = document.getElementById("prevGroupButton");
+    const nextGroupButton = document.getElementById("nextGroupButton");
+
+    const prevGroupButtonPlotMode = document.getElementById("prevGroupButtonPlotMode");
+    const nextGroupButtonPlotMode = document.getElementById("nextGroupButtonPlotMode");
+
+    const prevGraphButtonGroupMode = document.getElementById("prevGraphButtonGroupMode");
+    const nextGraphButtonGroupMode = document.getElementById("nextGraphButtonGroupMode");
+
+    const prevGraphButtonPlotMode = document.getElementById("prevGraphButtonPlotMode");
+    const nextGraphButtonPlotMode = document.getElementById("nextGraphButtonPlotMode");
+
+    const statusDiv = document.getElementById("status");
+    const manualLoadPanel = document.getElementById("manualLoadPanel");
+    const manualDataInput = document.getElementById("manualDataInput");
+
+    const groupSummary = document.getElementById("groupSummary");
+    const plotTitle = document.getElementById("plotTitle");
+    const plotImage = document.getElementById("plotImage");
+
+    const imageModal = document.getElementById("imageModal");
+    const modalClose = document.getElementById("modalClose");
+    const modalImage = document.getElementById("modalImage");
+    const modalTitle = document.getElementById("modalTitle");
+    const modalPrevButton = document.getElementById("modalPrevButton");
+    const modalNextButton = document.getElementById("modalNextButton");
+
+    // ============================================================
+    // UTILIDADES
+    // ============================================================
+
+    function setStatus(message, isError = false) {
+      statusDiv.textContent = message;
+      statusDiv.className = isError ? "status error" : "status";
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function getGroupLabel(group, index) {
+      if (!group) return `Grupo ${index + 1}`;
+
+      const possibleKeys = [
+        "uniqueid",
+        "unique_id",
+        "group_id",
+        "group",
+        "id",
+        "name",
+        "label",
+        "title"
+      ];
+
+      for (const key of possibleKeys) {
+        if (group[key] !== undefined && group[key] !== null && group[key] !== "") {
+          return String(group[key]);
+        }
+      }
+
+      return `Grupo ${index + 1}`;
+    }
+
+    function getGroupPlots(group) {
+      if (!group) return [];
+
+      if (Array.isArray(group.plots)) return group.plots;
+      if (Array.isArray(group.images)) return group.images;
+      if (Array.isArray(group.files)) return group.files;
+      if (Array.isArray(group.graficos)) return group.graficos;
+
+      const possibleSingleKeys = [
+        "plot",
+        "image",
+        "filename",
+        "file",
+        "path",
+        "src"
+      ];
+
+      for (const key of possibleSingleKeys) {
+        if (group[key]) return [group[key]];
+      }
+
+      return [];
+    }
+
+    function getPlotPath(plot) {
+      if (typeof plot === "string") return plot;
+
+      if (!plot || typeof plot !== "object") return "";
+
+      const possibleKeys = [
+        "path",
+        "src",
+        "file",
+        "filename",
+        "image",
+        "plot"
+      ];
+
+      for (const key of possibleKeys) {
+        if (plot[key]) return String(plot[key]);
+      }
+
+      return "";
+    }
+
+    function getPlotLabel(plot, index) {
+      if (typeof plot === "string") {
+        const parts = plot.split("/");
+        return parts[parts.length - 1] || `Gráfico ${index + 1}`;
+      }
+
+      if (!plot || typeof plot !== "object") return `Gráfico ${index + 1}`;
+
+      const possibleKeys = [
+        "title",
+        "label",
+        "name",
+        "filename",
+        "file",
+        "path"
+      ];
+
+      for (const key of possibleKeys) {
+        if (plot[key]) {
+          const value = String(plot[key]);
+          const parts = value.split("/");
+          return parts[parts.length - 1] || value;
+        }
+      }
+
+      return `Gráfico ${index + 1}`;
+    }
+
+    function normalizeData(data) {
+      if (Array.isArray(data)) {
+        return data;
+      }
+
+      if (data && Array.isArray(data.groups)) {
+        return data.groups;
+      }
+
+      if (data && Array.isArray(data.grupos)) {
+        return data.grupos;
+      }
+
+      if (data && typeof data === "object") {
+        return Object.entries(data).map(([key, value]) => {
+          if (value && typeof value === "object" && !Array.isArray(value)) {
+            return {
+              uniqueid: key,
+              ...value
+            };
+          }
+
+          return {
+            uniqueid: key,
+            plots: Array.isArray(value) ? value : [value]
+          };
+        });
+      }
+
+      return [];
+    }
+
+    function isSummaryKey(key) {
+      const excluded = new Set([
+        "plots",
+        "images",
+        "files",
+        "graficos",
+        "plot",
+        "image",
+        "filename",
+        "file",
+        "path",
+        "src"
+      ]);
+
+      return !excluded.has(key);
+    }
+
+    // ============================================================
+    // CARGA DE DATOS
+    // ============================================================
+
+    async function loadDataAutomatically() {
+      try {
+        const response = await fetch("data.json", { cache: "no-store" });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        initializeData(data);
+        manualLoadPanel.classList.add("hidden");
+      } catch (error) {
+        console.warn("No se pudo cargar data.json automáticamente:", error);
+
+        manualLoadPanel.classList.remove("hidden");
+        setStatus(
+          "No pude recargar data.json automáticamente. Si abriste el HTML como archivo local, usá el selector 'Cargar data.json manualmente'.",
+          true
+        );
+      }
+    }
+
+    function loadDataFromFile(file) {
+      const reader = new FileReader();
+
+      reader.onload = function(event) {
+        try {
+          const data = JSON.parse(event.target.result);
+          initializeData(data);
+          manualLoadPanel.classList.add("hidden");
+        } catch (error) {
+          console.error(error);
+          setStatus("No se pudo leer el JSON seleccionado.", true);
+        }
+      };
+
+      reader.readAsText(file);
+    }
+
+    function initializeData(data) {
+      rawData = data;
+      groups = normalizeData(data);
+
+      if (!groups.length) {
+        setStatus("data.json no contiene grupos reconocibles.", true);
+        return;
+      }
+
+      currentGroupIndex = 0;
+      currentPlotIndex = 0;
+
+      populateGroupSelect();
+      populatePlotSelect();
+      renderCurrentView();
+
+      setStatus(`Datos cargados correctamente. Grupos disponibles: ${groups.length}.`);
+    }
+
+    // ============================================================
+    // POBLAR SELECTORES
+    // ============================================================
+
+    function populateGroupSelect() {
+      groupSelect.innerHTML = "";
+
+      groups.forEach((group, index) => {
+        const option = document.createElement("option");
+        option.value = String(index);
+        option.textContent = getGroupLabel(group, index);
+        groupSelect.appendChild(option);
+      });
+
+      groupSelect.value = String(currentGroupIndex);
+    }
+
+    function populatePlotSelect() {
+      plotSelect.innerHTML = "";
+
+      groups.forEach((group, groupIndex) => {
+        const plots = getGroupPlots(group);
+        const groupLabel = getGroupLabel(group, groupIndex);
+
+        plots.forEach((plot, plotIndex) => {
+          const option = document.createElement("option");
+          option.value = `${groupIndex}:${plotIndex}`;
+          option.textContent = `${groupLabel} — ${getPlotLabel(plot, plotIndex)}`;
+          plotSelect.appendChild(option);
+        });
+      });
+
+      updatePlotSelectValue();
+    }
+
+    function updatePlotSelectValue() {
+      const value = `${currentGroupIndex}:${currentPlotIndex}`;
+      plotSelect.value = value;
+    }
+
+    // ============================================================
+    // RENDER
+    // ============================================================
+
+    function renderCurrentView() {
+      if (!groups.length) return;
+
+      const group = groups[currentGroupIndex];
+      const plots = getGroupPlots(group);
+
+      if (currentPlotIndex < 0) currentPlotIndex = 0;
+      if (currentPlotIndex >= plots.length) currentPlotIndex = Math.max(plots.length - 1, 0);
+
+      groupSelect.value = String(currentGroupIndex);
+      updatePlotSelectValue();
+
+      renderGroupSummary(group);
+      renderPlot(group, currentPlotIndex);
+      updateButtonStates();
+    }
+
+    function renderGroupSummary(group) {
+      groupSummary.innerHTML = "";
+
+      if (!group || typeof group !== "object") {
+        groupSummary.innerHTML = `<div class="summary-item">Sin resumen disponible.</div>`;
+        return;
+      }
+
+      const entries = Object.entries(group).filter(([key, value]) => {
+        return isSummaryKey(key) && value !== null && value !== undefined;
+      });
+
+      if (!entries.length) {
+        groupSummary.innerHTML = `<div class="summary-item">Sin resumen disponible.</div>`;
+        return;
+      }
+
+      entries.forEach(([key, value]) => {
+        const item = document.createElement("div");
+        item.className = "summary-item";
+
+        let renderedValue;
+
+        if (typeof value === "object") {
+          renderedValue = `<pre style="white-space: pre-wrap; margin: 4px 0;">${escapeHtml(JSON.stringify(value, null, 2))}</pre>`;
+        } else {
+          renderedValue = escapeHtml(value);
+        }
+
+        item.innerHTML = `
+          <span class="summary-key">${escapeHtml(key)}:</span>
+          <span>${renderedValue}</span>
+        `;
+
+        groupSummary.appendChild(item);
+      });
+    }
+
+    function renderPlot(group, plotIndex) {
+      const plots = getGroupPlots(group);
+
+      if (!plots.length) {
+        plotTitle.textContent = "Este grupo no tiene gráficos asociados.";
+        plotImage.removeAttribute("src");
+        plotImage.classList.add("hidden");
+        return;
+      }
+
+      const plot = plots[plotIndex];
+      const src = getPlotPath(plot);
+      const label = getPlotLabel(plot, plotIndex);
+
+      plotTitle.textContent = `${getGroupLabel(group, currentGroupIndex)} — ${label}`;
+
+      if (src) {
+        plotImage.src = src;
+        plotImage.classList.remove("hidden");
+      } else {
+        plotImage.removeAttribute("src");
+        plotImage.classList.add("hidden");
+      }
+
+      if (imageModal.style.display === "block") {
+        updateModalImage();
+      }
+    }
+
+    function updateButtonStates() {
+      const group = groups[currentGroupIndex];
+      const plots = getGroupPlots(group);
+
+      const atFirstGroup = currentGroupIndex <= 0;
+      const atLastGroup = currentGroupIndex >= groups.length - 1;
+
+      const atFirstPlot = currentPlotIndex <= 0;
+      const atLastPlot = currentPlotIndex >= plots.length - 1 || plots.length === 0;
+
+      prevGroupButton.disabled = atFirstGroup;
+      nextGroupButton.disabled = atLastGroup;
+
+      prevGroupButtonPlotMode.disabled = atFirstGroup;
+      nextGroupButtonPlotMode.disabled = atLastGroup;
+
+      prevGraphButtonGroupMode.disabled = atFirstPlot;
+      nextGraphButtonGroupMode.disabled = atLastPlot;
+
+      prevGraphButtonPlotMode.disabled = atFirstPlot;
+      nextGraphButtonPlotMode.disabled = atLastPlot;
+
+      modalPrevButton.disabled = atFirstPlot;
+      modalNextButton.disabled = atLastPlot;
+    }
+
+    // ============================================================
+    // NAVEGACIÓN
+    // ============================================================
+
+    function goToPreviousGroup() {
+      if (currentGroupIndex <= 0) return;
+
+      currentGroupIndex -= 1;
+      currentPlotIndex = 0;
+      renderCurrentView();
+    }
+
+    function goToNextGroup() {
+      if (currentGroupIndex >= groups.length - 1) return;
+
+      currentGroupIndex += 1;
+      currentPlotIndex = 0;
+      renderCurrentView();
+    }
+
+    function goToPreviousGraph() {
+      if (!groups.length) return;
+
+      if (currentPlotIndex > 0) {
+        currentPlotIndex -= 1;
+        renderCurrentView();
+      }
+    }
+
+    function goToNextGraph() {
+      if (!groups.length) return;
+
+      const group = groups[currentGroupIndex];
+      const plots = getGroupPlots(group);
+
+      if (currentPlotIndex < plots.length - 1) {
+        currentPlotIndex += 1;
+        renderCurrentView();
+      }
+    }
+
+    function selectGroupByIndex(index) {
+      if (index < 0 || index >= groups.length) return;
+
+      currentGroupIndex = index;
+      currentPlotIndex = 0;
+      renderCurrentView();
+    }
+
+    function selectPlotByGlobalValue(value) {
+      const parts = String(value).split(":");
+
+      if (parts.length !== 2) return;
+
+      const groupIndex = Number(parts[0]);
+      const plotIndex = Number(parts[1]);
+
+      if (!Number.isInteger(groupIndex) || !Number.isInteger(plotIndex)) return;
+      if (groupIndex < 0 || groupIndex >= groups.length) return;
+
+      const plots = getGroupPlots(groups[groupIndex]);
+      if (plotIndex < 0 || plotIndex >= plots.length) return;
+
+      currentGroupIndex = groupIndex;
+      currentPlotIndex = plotIndex;
+
+      renderCurrentView();
+    }
+
+    // ============================================================
+    // MODAL
+    // ============================================================
+
+    function openModal() {
+      if (!plotImage.src) return;
+
+      imageModal.style.display = "block";
+      updateModalImage();
+    }
+
+    function closeModal() {
+      imageModal.style.display = "none";
+    }
+
+    function updateModalImage() {
+      const group = groups[currentGroupIndex];
+      const plots = getGroupPlots(group);
+
+      if (!plots.length) return;
+
+      const plot = plots[currentPlotIndex];
+      const src = getPlotPath(plot);
+      const label = getPlotLabel(plot, currentPlotIndex);
+
+      modalImage.src = src;
+      modalTitle.textContent = `${getGroupLabel(group, currentGroupIndex)} — ${label}`;
+
+      updateButtonStates();
+    }
+
+    // ============================================================
+    // EVENT LISTENERS
+    // ============================================================
+
+    modeSelect.addEventListener("change", function() {
+      const mode = modeSelect.value;
+
+      if (mode === "group") {
+        groupModeControls.classList.remove("hidden");
+        plotModeControls.classList.add("hidden");
+      } else {
+        groupModeControls.classList.add("hidden");
+        plotModeControls.classList.remove("hidden");
+      }
+
+      renderCurrentView();
+    });
+
+    groupSelect.addEventListener("change", function() {
+      selectGroupByIndex(Number(groupSelect.value));
+    });
+
+    plotSelect.addEventListener("change", function() {
+      selectPlotByGlobalValue(plotSelect.value);
+    });
+
+    prevGroupButton.addEventListener("click", goToPreviousGroup);
+    nextGroupButton.addEventListener("click", goToNextGroup);
+
+    prevGroupButtonPlotMode.addEventListener("click", goToPreviousGroup);
+    nextGroupButtonPlotMode.addEventListener("click", goToNextGroup);
+
+    prevGraphButtonGroupMode.addEventListener("click", goToPreviousGraph);
+    nextGraphButtonGroupMode.addEventListener("click", goToNextGraph);
+
+    prevGraphButtonPlotMode.addEventListener("click", goToPreviousGraph);
+    nextGraphButtonPlotMode.addEventListener("click", goToNextGraph);
+
+    manualDataInput.addEventListener("change", function(event) {
+      const file = event.target.files[0];
+
+      if (file) {
+        loadDataFromFile(file);
+      }
+    });
+
+    plotImage.addEventListener("click", openModal);
+    modalClose.addEventListener("click", closeModal);
+
+    modalPrevButton.addEventListener("click", function(event) {
+      event.stopPropagation();
+      goToPreviousGraph();
+    });
+
+    modalNextButton.addEventListener("click", function(event) {
+      event.stopPropagation();
+      goToNextGraph();
+    });
+
+    imageModal.addEventListener("click", function(event) {
+      if (event.target === imageModal) {
+        closeModal();
+      }
+    });
+
+    document.addEventListener("keydown", function(event) {
+      const modalOpen = imageModal.style.display === "block";
+
+      if (!modalOpen) return;
+
+      if (event.key === "Escape") {
+        closeModal();
+      }
+
+      if (event.key === "ArrowLeft") {
+        goToPreviousGraph();
+      }
+
+      if (event.key === "ArrowRight") {
+        goToNextGraph();
+      }
+    });
+
+    // ============================================================
+    // INICIALIZACIÓN
+    // ============================================================
+
+    loadDataAutomatically();
+  </script>
+</body>
+</html>

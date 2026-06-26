@@ -1,0 +1,1065 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Visualizador de sobredensidades</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+:root {
+    --bg: #f5f6f8;
+    --panel: #ffffff;
+    --text: #1f2933;
+    --muted: #697386;
+    --border: #d8dee9;
+    --accent: #1f77b4;
+    --soft: #fafafa;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+}
+
+header {
+    padding: 18px 24px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+h1 {
+    margin: 0 0 12px 0;
+    font-size: 22px;
+}
+
+.controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+.control-block {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+select, button, input, textarea {
+    font-family: inherit;
+}
+
+select, button {
+    padding: 8px 10px;
+    font-size: 14px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: white;
+}
+
+button {
+    cursor: pointer;
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+button.primary {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+}
+
+main {
+    padding: 20px 24px 40px 24px;
+}
+
+.status {
+    margin-bottom: 14px;
+    color: var(--muted);
+}
+
+.summary {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 18px;
+}
+
+.summary h2 {
+    margin: 0 0 10px 0;
+    font-size: 18px;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 8px 16px;
+}
+
+.summary-item {
+    font-size: 14px;
+}
+
+.summary-key {
+    color: var(--muted);
+}
+
+.notes-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 18px;
+}
+
+.notes-panel h2 {
+    margin: 0 0 10px 0;
+    font-size: 18px;
+}
+
+.note-form {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.note-form input,
+.note-form textarea {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 14px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+}
+
+.note-form textarea {
+    resize: vertical;
+}
+
+.notes-status {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 10px;
+}
+
+.notes-list {
+    display: grid;
+    gap: 10px;
+}
+
+.note-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px;
+    background: var(--soft);
+}
+
+.note-meta {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 6px;
+}
+
+.note-author {
+    font-weight: 600;
+    color: var(--text);
+}
+
+.note-text {
+    font-size: 14px;
+    white-space: pre-wrap;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 18px;
+}
+
+.card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+}
+
+.card h3 {
+    margin: 0 0 4px 0;
+    font-size: 16px;
+}
+
+.card p {
+    margin: 0 0 10px 0;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.card img {
+    width: 100%;
+    display: block;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    cursor: zoom-in;
+    background: white;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 100;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.86);
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.modal.open {
+    display: flex;
+}
+
+.modal-content {
+    width: min(1500px, 96vw);
+    max-height: 92vh;
+    display: grid;
+    grid-template-columns: minmax(0, 2.2fr) minmax(320px, 0.9fr);
+    gap: 16px;
+    align-items: stretch;
+}
+
+.modal-image-panel {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.modal-title {
+    color: white;
+    font-size: 15px;
+}
+
+.modal img {
+    max-width: 100%;
+    max-height: 80vh;
+    object-fit: contain;
+    border-radius: 8px;
+    background: white;
+}
+
+.modal-controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.modal-controls button {
+    background: white;
+}
+
+.modal-notes-panel {
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 14px;
+    overflow: auto;
+    max-height: 92vh;
+}
+
+.modal-notes-panel h2 {
+    margin: 0 0 10px 0;
+    font-size: 18px;
+}
+
+@media (max-width: 1000px) {
+    .modal-content {
+        grid-template-columns: 1fr;
+        overflow: auto;
+    }
+
+    .modal img {
+        max-height: 55vh;
+    }
+
+    .modal-notes-panel {
+        max-height: none;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <h1>Visualizador de sobredensidades</h1>
+
+    <div class="controls">
+
+        <label>
+            Modo:
+            <select id="modeSelect">
+                <option value="group">Seleccionar grupo</option>
+                <option value="plot">Seleccionar gráfico</option>
+            </select>
+        </label>
+
+        <div id="groupControls" class="control-block">
+            <button id="prevGroupBtn">Previous group</button>
+
+            <label>
+                Grupo:
+                <select id="groupSelect"></select>
+            </label>
+
+            <button id="nextGroupBtn">Next group</button>
+        </div>
+
+        <div id="plotControls" class="control-block">
+            <button id="prevGraphBtn">Previous graph</button>
+
+            <label>
+                Gráfico:
+                <select id="graphSelect"></select>
+            </label>
+
+            <button id="nextGraphBtn">Next graph</button>
+        </div>
+
+        <button class="primary" id="reloadBtn">Recargar desde Supabase</button>
+    </div>
+</header>
+
+<main>
+    <div id="status" class="status">Cargando datos...</div>
+    <section id="summary" class="summary"></section>
+
+    <section id="groupNotesPanel" class="notes-panel">
+        <h2 id="groupNotesTitle">Notas del grupo</h2>
+
+        <div class="note-form">
+            <input id="groupNoteAuthor" type="text" placeholder="Autor">
+            <textarea id="groupNoteText" rows="3" placeholder="Escribir nota..."></textarea>
+            <button class="primary" id="groupSaveNoteBtn">Guardar nota</button>
+        </div>
+
+        <div id="groupNotesStatus" class="notes-status"></div>
+        <div id="groupNotesList" class="notes-list"></div>
+    </section>
+
+    <section id="plotGrid" class="grid"></section>
+</main>
+
+<div id="modal" class="modal">
+    <div class="modal-content">
+
+        <div class="modal-image-panel">
+            <div id="modalTitle" class="modal-title"></div>
+            <img id="modalImage" src="">
+            <div class="modal-controls">
+                <button id="prevImageBtn">Anterior</button>
+                <button id="nextImageBtn">Siguiente</button>
+                <button id="closeModalBtn">Cerrar</button>
+            </div>
+        </div>
+
+        <aside class="modal-notes-panel">
+            <h2 id="modalNotesTitle">Notas del grupo</h2>
+
+            <div class="note-form">
+                <input id="modalNoteAuthor" type="text" placeholder="Autor">
+                <textarea id="modalNoteText" rows="3" placeholder="Escribir nota..."></textarea>
+                <button class="primary" id="modalSaveNoteBtn">Guardar nota</button>
+            </div>
+
+            <div id="modalNotesStatus" class="notes-status"></div>
+            <div id="modalNotesList" class="notes-list"></div>
+        </aside>
+
+    </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://paffbamebsezllxfzkqa.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_kJT6KjTYMxIvyNK8GiNuYg_bKItPN2s";
+const PROJECT_ID = "sobredensidades_v1";
+
+const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let groups = [];
+let plots = [];
+let graphSpecs = [];
+
+let mode = "group";
+let selectedGroupIndex = 0;
+let selectedGraphIndex = 0;
+
+let modalItems = [];
+let modalIndex = 0;
+
+const modeSelect = document.getElementById("modeSelect");
+const groupSelect = document.getElementById("groupSelect");
+const graphSelect = document.getElementById("graphSelect");
+
+const groupControls = document.getElementById("groupControls");
+const plotControls = document.getElementById("plotControls");
+
+const plotGrid = document.getElementById("plotGrid");
+const summaryBox = document.getElementById("summary");
+const statusBox = document.getElementById("status");
+
+const groupNotesPanel = document.getElementById("groupNotesPanel");
+const groupNotesTitle = document.getElementById("groupNotesTitle");
+const groupNoteAuthor = document.getElementById("groupNoteAuthor");
+const groupNoteText = document.getElementById("groupNoteText");
+const groupSaveNoteBtn = document.getElementById("groupSaveNoteBtn");
+const groupNotesStatus = document.getElementById("groupNotesStatus");
+const groupNotesList = document.getElementById("groupNotesList");
+
+const modal = document.getElementById("modal");
+const modalImage = document.getElementById("modalImage");
+const modalTitle = document.getElementById("modalTitle");
+
+const modalNotesTitle = document.getElementById("modalNotesTitle");
+const modalNoteAuthor = document.getElementById("modalNoteAuthor");
+const modalNoteText = document.getElementById("modalNoteText");
+const modalSaveNoteBtn = document.getElementById("modalSaveNoteBtn");
+const modalNotesStatus = document.getElementById("modalNotesStatus");
+const modalNotesList = document.getElementById("modalNotesList");
+
+function numericUidSort(a, b) {
+    const an = Number(a.uid);
+    const bn = Number(b.uid);
+
+    if (Number.isFinite(an) && Number.isFinite(bn)) {
+        return an - bn;
+    }
+
+    return String(a.uid).localeCompare(String(b.uid));
+}
+
+function selectedGroup() {
+    return groups[selectedGroupIndex] || null;
+}
+
+function selectedGraph() {
+    return graphSpecs[selectedGraphIndex] || null;
+}
+
+function currentModalItem() {
+    return modalItems[modalIndex] || null;
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+function formatDateTime(value) {
+    if (!value) return "";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+
+    return date.toLocaleString();
+}
+
+function setStoredAuthor(author) {
+    if (!author) return;
+
+    localStorage.setItem("visualizer_note_author", author);
+    groupNoteAuthor.value = author;
+    modalNoteAuthor.value = author;
+}
+
+function loadStoredAuthor() {
+    const storedAuthor = localStorage.getItem("visualizer_note_author");
+
+    if (storedAuthor) {
+        groupNoteAuthor.value = storedAuthor;
+        modalNoteAuthor.value = storedAuthor;
+    }
+}
+
+async function loadData() {
+    statusBox.textContent = "Cargando datos desde Supabase...";
+
+    const groupsResponse = await client
+        .from("visualizer_groups")
+        .select("uid, summary")
+        .eq("project_id", PROJECT_ID);
+
+    if (groupsResponse.error) {
+        console.error(groupsResponse.error);
+        statusBox.textContent = "Error cargando grupos desde Supabase.";
+        return;
+    }
+
+    const plotsResponse = await client
+        .from("visualizer_plots")
+        .select("uid, graph_key, graph_label, graph_description, sort_order, public_url")
+        .eq("project_id", PROJECT_ID)
+        .order("sort_order", { ascending: true });
+
+    if (plotsResponse.error) {
+        console.error(plotsResponse.error);
+        statusBox.textContent = "Error cargando gráficos desde Supabase.";
+        return;
+    }
+
+    groups = groupsResponse.data.sort(numericUidSort);
+    plots = plotsResponse.data;
+
+    const graphMap = new Map();
+
+    for (const plot of plots) {
+        if (!graphMap.has(plot.graph_key)) {
+            graphMap.set(plot.graph_key, {
+                key: plot.graph_key,
+                label: plot.graph_label || plot.graph_key,
+                description: plot.graph_description || "",
+                sort_order: plot.sort_order || 0,
+            });
+        }
+    }
+
+    graphSpecs = Array.from(graphMap.values())
+        .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+
+    selectedGroupIndex = Math.min(selectedGroupIndex, Math.max(groups.length - 1, 0));
+    selectedGraphIndex = Math.min(selectedGraphIndex, Math.max(graphSpecs.length - 1, 0));
+
+    initControls();
+    render();
+
+    statusBox.textContent = `Datos cargados: ${groups.length} grupos, ${plots.length} gráficos.`;
+}
+
+function initControls() {
+    groupSelect.innerHTML = "";
+
+    for (let i = 0; i < groups.length; i++) {
+        const opt = document.createElement("option");
+        opt.value = String(i);
+        opt.textContent = groups[i].uid;
+        groupSelect.appendChild(opt);
+    }
+
+    graphSelect.innerHTML = "";
+
+    for (let i = 0; i < graphSpecs.length; i++) {
+        const opt = document.createElement("option");
+        opt.value = String(i);
+        opt.textContent = graphSpecs[i].label;
+        graphSelect.appendChild(opt);
+    }
+
+    modeSelect.value = mode;
+    groupSelect.value = String(selectedGroupIndex);
+    graphSelect.value = String(selectedGraphIndex);
+}
+
+function renderSummaryForGroup(group) {
+    if (!group) {
+        summaryBox.innerHTML = "";
+        return;
+    }
+
+    const summary = group.summary || {};
+    const entries = Object.entries(summary);
+
+    let html = `<h2>Resumen del grupo ${escapeHtml(group.uid)}</h2>`;
+
+    if (entries.length === 0) {
+        html += `<div class="summary-item">Sin resumen disponible.</div>`;
+    } else {
+        html += `<div class="summary-grid">`;
+
+        for (const [key, value] of entries) {
+            html += `
+                <div class="summary-item">
+                    <span class="summary-key">${escapeHtml(key)}:</span>
+                    <span>${escapeHtml(value)}</span>
+                </div>
+            `;
+        }
+
+        html += `</div>`;
+    }
+
+    summaryBox.innerHTML = html;
+}
+
+function renderSummaryForGraph(graph) {
+    if (!graph) {
+        summaryBox.innerHTML = "";
+        return;
+    }
+
+    summaryBox.innerHTML = `
+        <h2>Gráfico: ${escapeHtml(graph.label)}</h2>
+        <div class="summary-item">
+            <span class="summary-key">Descripción:</span>
+            <span>${escapeHtml(graph.description || "Sin descripción disponible.")}</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-key">Modo:</span>
+            <span>Mostrando este gráfico para todos los grupos disponibles.</span>
+        </div>
+    `;
+}
+
+async function loadNotesForUid(uid, listElement, statusElement) {
+    if (!uid) {
+        listElement.innerHTML = "";
+        statusElement.textContent = "";
+        return;
+    }
+
+    statusElement.textContent = "Cargando notas...";
+
+    const response = await client
+        .from("visualizer_notes")
+        .select("id, author, note, created_at")
+        .eq("project_id", PROJECT_ID)
+        .eq("uid", String(uid))
+        .order("created_at", { ascending: false });
+
+    if (response.error) {
+        console.error(response.error);
+        statusElement.textContent = "Error cargando notas.";
+        listElement.innerHTML = "";
+        return;
+    }
+
+    const notes = response.data || [];
+
+    if (notes.length === 0) {
+        statusElement.textContent = "Sin notas para este grupo.";
+        listElement.innerHTML = "";
+        return;
+    }
+
+    statusElement.textContent = `${notes.length} nota(s).`;
+
+    listElement.innerHTML = notes.map(item => `
+        <article class="note-card">
+            <div class="note-meta">
+                <span class="note-author">${escapeHtml(item.author)}</span>
+                · ${escapeHtml(formatDateTime(item.created_at))}
+            </div>
+            <div class="note-text">${escapeHtml(item.note)}</div>
+        </article>
+    `).join("");
+}
+
+async function saveNoteForUid(uid, authorElement, textElement, buttonElement, statusElement, listElement) {
+    if (!uid) {
+        statusElement.textContent = "No hay grupo asociado.";
+        return;
+    }
+
+    const author = authorElement.value.trim();
+    const note = textElement.value.trim();
+
+    if (!author) {
+        statusElement.textContent = "Falta completar el autor.";
+        return;
+    }
+
+    if (!note) {
+        statusElement.textContent = "Falta escribir una nota.";
+        return;
+    }
+
+    statusElement.textContent = "Guardando nota...";
+    buttonElement.disabled = true;
+
+    const response = await client
+        .from("visualizer_notes")
+        .insert([
+            {
+                project_id: PROJECT_ID,
+                uid: String(uid),
+                author: author,
+                note: note,
+            }
+        ]);
+
+    buttonElement.disabled = false;
+
+    if (response.error) {
+        console.error(response.error);
+        statusElement.textContent = "Error guardando nota.";
+        return;
+    }
+
+    setStoredAuthor(author);
+    textElement.value = "";
+    statusElement.textContent = "Nota guardada.";
+
+    await loadNotesForUid(uid, listElement, statusElement);
+
+    const group = selectedGroup();
+    const modalItem = currentModalItem();
+
+    if (group && String(group.uid) === String(uid)) {
+        await loadNotesForUid(uid, groupNotesList, groupNotesStatus);
+    }
+
+    if (modal.classList.contains("open") && modalItem && String(modalItem.uid) === String(uid)) {
+        await loadNotesForUid(uid, modalNotesList, modalNotesStatus);
+    }
+}
+
+function loadGroupNotesPanel() {
+    const group = selectedGroup();
+
+    if (!group) {
+        groupNotesTitle.textContent = "Notas del grupo";
+        groupNotesList.innerHTML = "";
+        groupNotesStatus.textContent = "";
+        return;
+    }
+
+    groupNotesTitle.textContent = `Notas del grupo ${group.uid}`;
+    loadNotesForUid(group.uid, groupNotesList, groupNotesStatus);
+}
+
+function plotsForSelectedGroup() {
+    const group = selectedGroup();
+
+    if (!group) return [];
+
+    return plots
+        .filter(p => String(p.uid) === String(group.uid))
+        .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+}
+
+function plotsForSelectedGraph() {
+    const graph = selectedGraph();
+
+    if (!graph) return [];
+
+    const groupOrder = new Map();
+
+    for (let i = 0; i < groups.length; i++) {
+        groupOrder.set(String(groups[i].uid), i);
+    }
+
+    return plots
+        .filter(p => p.graph_key === graph.key)
+        .sort((a, b) => {
+            const ai = groupOrder.get(String(a.uid)) ?? 999999;
+            const bi = groupOrder.get(String(b.uid)) ?? 999999;
+            return ai - bi;
+        });
+}
+
+function renderPlotsForGroup() {
+    const groupPlots = plotsForSelectedGroup();
+
+    plotGrid.innerHTML = "";
+    modalItems = [];
+
+    for (let i = 0; i < groupPlots.length; i++) {
+        const plot = groupPlots[i];
+
+        const title = plot.graph_label || plot.graph_key;
+        const desc = plot.graph_description || "";
+
+        const card = document.createElement("article");
+        card.className = "card";
+
+        card.innerHTML = `
+            <h3>${escapeHtml(title)}</h3>
+            <p>${escapeHtml(desc)}</p>
+            <img src="${plot.public_url}" alt="${escapeHtml(title)}">
+        `;
+
+        const img = card.querySelector("img");
+
+        img.addEventListener("click", () => {
+            openModal(i);
+        });
+
+        plotGrid.appendChild(card);
+
+        modalItems.push({
+            uid: String(plot.uid),
+            title: `${title} — Grupo ${plot.uid}`,
+            url: plot.public_url,
+        });
+    }
+}
+
+function renderPlotsForGraph() {
+    const graphPlots = plotsForSelectedGraph();
+
+    plotGrid.innerHTML = "";
+    modalItems = [];
+
+    for (let i = 0; i < graphPlots.length; i++) {
+        const plot = graphPlots[i];
+
+        const title = `Grupo ${plot.uid}`;
+        const desc = plot.graph_label || plot.graph_key;
+
+        const card = document.createElement("article");
+        card.className = "card";
+
+        card.innerHTML = `
+            <h3>${escapeHtml(title)}</h3>
+            <p>${escapeHtml(desc)}</p>
+            <img src="${plot.public_url}" alt="${escapeHtml(title)}">
+        `;
+
+        const img = card.querySelector("img");
+
+        img.addEventListener("click", () => {
+            openModal(i);
+        });
+
+        plotGrid.appendChild(card);
+
+        modalItems.push({
+            uid: String(plot.uid),
+            title: `${plot.graph_label || plot.graph_key} — Grupo ${plot.uid}`,
+            url: plot.public_url,
+        });
+    }
+}
+
+function render() {
+    modeSelect.value = mode;
+    groupSelect.value = String(selectedGroupIndex);
+    graphSelect.value = String(selectedGraphIndex);
+
+    if (mode === "group") {
+        groupControls.style.display = "flex";
+        plotControls.style.display = "none";
+        groupNotesPanel.style.display = "block";
+
+        renderSummaryForGroup(selectedGroup());
+        renderPlotsForGroup();
+        loadGroupNotesPanel();
+    }
+
+    if (mode === "plot") {
+        groupControls.style.display = "none";
+        plotControls.style.display = "flex";
+        groupNotesPanel.style.display = "none";
+
+        renderSummaryForGraph(selectedGraph());
+        renderPlotsForGraph();
+    }
+}
+
+function previousGroup() {
+    if (groups.length === 0) return;
+
+    selectedGroupIndex = (selectedGroupIndex - 1 + groups.length) % groups.length;
+    render();
+}
+
+function nextGroup() {
+    if (groups.length === 0) return;
+
+    selectedGroupIndex = (selectedGroupIndex + 1) % groups.length;
+    render();
+}
+
+function previousGraph() {
+    if (graphSpecs.length === 0) return;
+
+    selectedGraphIndex = (selectedGraphIndex - 1 + graphSpecs.length) % graphSpecs.length;
+    render();
+}
+
+function nextGraph() {
+    if (graphSpecs.length === 0) return;
+
+    selectedGraphIndex = (selectedGraphIndex + 1) % graphSpecs.length;
+    render();
+}
+
+function openModal(index) {
+    if (modalItems.length === 0) return;
+
+    modalIndex = index;
+    updateModal();
+    modal.classList.add("open");
+}
+
+function updateModal() {
+    const item = currentModalItem();
+
+    if (!item) return;
+
+    modalImage.src = item.url;
+    modalTitle.textContent = item.title;
+    modalNotesTitle.textContent = `Notas del grupo ${item.uid}`;
+
+    modalNoteText.value = "";
+
+    loadNotesForUid(item.uid, modalNotesList, modalNotesStatus);
+}
+
+function closeModal() {
+    modal.classList.remove("open");
+    modalImage.src = "";
+}
+
+function previousImage() {
+    if (modalItems.length === 0) return;
+
+    modalIndex = (modalIndex - 1 + modalItems.length) % modalItems.length;
+    updateModal();
+}
+
+function nextImage() {
+    if (modalItems.length === 0) return;
+
+    modalIndex = (modalIndex + 1) % modalItems.length;
+    updateModal();
+}
+
+modeSelect.addEventListener("change", () => {
+    mode = modeSelect.value;
+    render();
+});
+
+groupSelect.addEventListener("change", () => {
+    selectedGroupIndex = Number(groupSelect.value);
+    render();
+});
+
+graphSelect.addEventListener("change", () => {
+    selectedGraphIndex = Number(graphSelect.value);
+    render();
+});
+
+document.getElementById("prevGroupBtn").addEventListener("click", previousGroup);
+document.getElementById("nextGroupBtn").addEventListener("click", nextGroup);
+
+document.getElementById("prevGraphBtn").addEventListener("click", previousGraph);
+document.getElementById("nextGraphBtn").addEventListener("click", nextGraph);
+
+document.getElementById("reloadBtn").addEventListener("click", loadData);
+
+document.getElementById("prevImageBtn").addEventListener("click", previousImage);
+document.getElementById("nextImageBtn").addEventListener("click", nextImage);
+document.getElementById("closeModalBtn").addEventListener("click", closeModal);
+
+groupSaveNoteBtn.addEventListener("click", () => {
+    const group = selectedGroup();
+    const uid = group ? group.uid : null;
+
+    saveNoteForUid(
+        uid,
+        groupNoteAuthor,
+        groupNoteText,
+        groupSaveNoteBtn,
+        groupNotesStatus,
+        groupNotesList
+    );
+});
+
+modalSaveNoteBtn.addEventListener("click", () => {
+    const item = currentModalItem();
+    const uid = item ? item.uid : null;
+
+    saveNoteForUid(
+        uid,
+        modalNoteAuthor,
+        modalNoteText,
+        modalSaveNoteBtn,
+        modalNotesStatus,
+        modalNotesList
+    );
+});
+
+groupNoteText.addEventListener("keydown", event => {
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+        const group = selectedGroup();
+        const uid = group ? group.uid : null;
+
+        saveNoteForUid(
+            uid,
+            groupNoteAuthor,
+            groupNoteText,
+            groupSaveNoteBtn,
+            groupNotesStatus,
+            groupNotesList
+        );
+    }
+});
+
+modalNoteText.addEventListener("keydown", event => {
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+        const item = currentModalItem();
+        const uid = item ? item.uid : null;
+
+        saveNoteForUid(
+            uid,
+            modalNoteAuthor,
+            modalNoteText,
+            modalSaveNoteBtn,
+            modalNotesStatus,
+            modalNotesList
+        );
+    }
+});
+
+modal.addEventListener("click", event => {
+    if (event.target === modal) {
+        closeModal();
+    }
+});
+
+document.addEventListener("keydown", event => {
+    if (modal.classList.contains("open")) {
+        if (event.key === "Escape") closeModal();
+        if (event.key === "ArrowLeft") previousImage();
+        if (event.key === "ArrowRight") nextImage();
+        return;
+    }
+
+    if (mode === "group") {
+        if (event.key === "ArrowLeft") previousGroup();
+        if (event.key === "ArrowRight") nextGroup();
+    }
+
+    if (mode === "plot") {
+        if (event.key === "ArrowLeft") previousGraph();
+        if (event.key === "ArrowRight") nextGraph();
+    }
+});
+
+loadStoredAuthor();
+loadData();
+</script>
+
+</body>
+</html>
